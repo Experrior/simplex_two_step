@@ -1,6 +1,7 @@
 from printer import print_simplex
 import sys
 
+
 class NoAnswer(Exception):
     pass
 
@@ -18,12 +19,17 @@ class UnboundedSolution(Exception):
 
 
 def is_looping(seen):
+    """
+        Helper function to check if simplex is looping through finite solution set.
+        :param seen: List of pairs: (column, row)
+        :return: boolean True if there's a loop in a list
+    """
     last = seen[0]
     last_inx = 0
     streak = 0
     wait = 3
     solution = []
-    for i in range(seen.__len__()):
+    for i in range(len(seen)):
         if last == seen[i] and last_inx != i:
             streak += 1
             last_inx += 1
@@ -42,18 +48,19 @@ def is_looping(seen):
             solution.append(last)
             last = seen[last_inx + 1]
 
-    if solution.__len__() > 0:
+    if len(solution) > 0:
         return True, solution
     raise NoLoopingDetected
 
 
 def solve_basic(simplex_tableau, maximize, basic_variables):
     a = 0
-    size = simplex_tableau.__len__() - 1
+    size = len(simplex_tableau) - 1
     seen = []
     force_end = False
     while not force_end:
         print_simplex(simplex_tableau)
+
         # find pivot column
         pivot_column = -1
         column_count = 0
@@ -84,7 +91,7 @@ def solve_basic(simplex_tableau, maximize, basic_variables):
         pivot_row = -1
 
         ratio = 0
-        for i in range(simplex_tableau[0].__len__() - 1):
+        for i in range(len(simplex_tableau[0]) - 1):
             # if simplex_tableau[pivot_column][i] <= 0: continue
             if ratio <= 0 and simplex_tableau[pivot_column][i] != 0:
                 ratio = simplex_tableau[-1][i] / simplex_tableau[pivot_column][i]
@@ -104,13 +111,13 @@ def solve_basic(simplex_tableau, maximize, basic_variables):
 
         if a > 100:
             _, finish = is_looping(seen)
-            final = [-1] * (finish.__len__())
+            final = [-1] * (len(finish))
 
-            for i in range(finish.__len__()):
+            for i in range(len(finish)):
                 final[i] = simplex_tableau[-1][finish[i][1]] / simplex_tableau[finish[i][0]][finish[i][1]]
             force_end = True
             final.sort()
-            for i in range(final.__len__()):
+            for i in range(len(final)):
                 if final[i] <= 0:
                     continue
                 else:
@@ -118,14 +125,14 @@ def solve_basic(simplex_tableau, maximize, basic_variables):
                     break
 
         number = simplex_tableau[pivot_column][pivot_row]
-        for i in range(simplex_tableau.__len__()):
+        for i in range(len(simplex_tableau)):
             simplex_tableau[i][pivot_row] /= number
 
         #  solve for given pivot
-        for i in range(simplex_tableau[pivot_column].__len__()):
+        for i in range(len(simplex_tableau[pivot_column])):
             number = -simplex_tableau[pivot_column][i]
             if i == pivot_row or number == 0: continue
-            for j in range(simplex_tableau.__len__()):
+            for j in range(len(simplex_tableau)):
                 simplex_tableau[j][i] += (number * simplex_tableau[j][pivot_row])
 
             print_simplex(simplex_tableau)
@@ -135,7 +142,14 @@ def solve_basic(simplex_tableau, maximize, basic_variables):
     return simplex_tableau, "finished", basic_variables
 
 
-def solve(bound):
+def solve(bound) -> None:
+    """
+        Main function for solving linear maximization problem.
+        :param bound: Parameter for round() function for printing float numbers
+        :return: None
+    """
+
+    # read and save input data into ram
     with open("input.txt", "r") as input_file:
         problem = input_file.read().split("\n")
 
@@ -150,7 +164,7 @@ def solve(bound):
             optimization.append(i)
         orig_variables = num_of_variables
         k = 1
-        while k < problem.__len__():
+        while k < len(problem):
             constraints.append(problem[k].split(" "))
             if float(constraints[-1][-1]) == 0.0:
                 values.append(sys.float_info.min)
@@ -168,6 +182,7 @@ def solve(bound):
     no_extensive = 0
     no_artificial = 0
 
+    # fill the number of variables according to equality/inequality
     for i in range(num_of_constraints):
         match constraints[i][-2]:
             case "<":
@@ -182,16 +197,14 @@ def solve(bound):
                 artificial[i] = 1
                 no_artificial += 1
 
-        #  create initial simplex tableau for phase 1
+    # create initial simplex tableau for phase 1
 
     # add variable columns
     simplex_tableau = []
     for i in range(num_of_variables):
         temp_var = [float(x[i]) for x in constraints]
         temp_var.append(0)
-        simplex_tableau.append(
-            temp_var
-        )
+        simplex_tableau.append(temp_var)
 
     # add slug columns
     for i in range(num_of_constraints):
@@ -221,31 +234,30 @@ def solve(bound):
     values.append(0)
     simplex_tableau.append(values)
 
-    basic_variables = [-1] * simplex_tableau[0].__len__()
+    basic_variables = [-1] * len(simplex_tableau[0])
 
     # --- phase 1 ---
 
     # remove artificial variables from objective row
     target_row = 0
     for i in range(no_artificial):
-        for j in range(simplex_tableau[0].__len__()):
+        for j in range(len(simplex_tableau[0])):
             if simplex_tableau[-2 - i][j] != 0:
                 target_row = j
                 break
-        for k in range(simplex_tableau.__len__()):
+        for k in range(len(simplex_tableau)):
             simplex_tableau[k][-1] += simplex_tableau[k][target_row]
 
     print_simplex(simplex_tableau)
     print("\n", num_of_variables, no_slug, no_extensive, no_artificial)
 
     # solve for normal variables:
-
     simplex_tableau, message, basic_variables = solve_basic(simplex_tableau, False, basic_variables)
 
     print_simplex(simplex_tableau)
     print(num_of_variables, no_slug, no_extensive, no_artificial, "\n\n End of phase 1 \n")
 
-    #     check case 1:
+    # check case 1:
     if round(simplex_tableau[-1][-1], 4) > 0:
         print("No feasible solution exists\n\n")
     else:
@@ -257,7 +269,8 @@ def solve(bound):
         print_simplex(simplex_tableau)
         print(num_of_variables, no_slug, no_extensive, no_artificial, "\n\n\n")
 
-        #         check case 3
+        # check case 3
+
         # see if there are any negative x's in objective row, if so delete them
         to_delete = []
         for i in range(num_of_variables):
@@ -269,7 +282,6 @@ def solve(bound):
             simplex_tableau[i][-1] = -float(optimization[i])
 
         # delete non basic x's
-
         for i in to_delete:
             del simplex_tableau[i]
             num_of_variables -= 1
@@ -281,10 +293,14 @@ def solve(bound):
 
         print_simplex(simplex_tableau)
 
+
+
+
+        # analyze the final simplex matrix
         tab = []
         for i in range(num_of_variables):
             found = False
-            for j in range(simplex_tableau[i].__len__()):
+            for j in range(len(simplex_tableau[i])):
                 if simplex_tableau[i][j] == 1 and found:
                     found = False
                     tab.pop()
@@ -301,24 +317,26 @@ def solve(bound):
         for i in tab:
             solutions.append(i[0] + 1)
 
-        for iter in to_delete:
-            for i in range(solutions.__len__()):
-                if solutions[i] >= iter:
+        # update variable numbers with respect to deleted columns
+        for iterator in to_delete:
+            for i in range(len(solutions)):
+                if solutions[i] >= iterator:
                     solutions[i] += 1
-            for i in range(basic_variables.__len__()):
-                if basic_variables[i] != -1 and basic_variables[i] >= iter:
+            for i in range(len(basic_variables)):
+                if basic_variables[i] != -1 and basic_variables[i] >= iterator:
                     basic_variables[i] += 1
 
         if message == "unbounded":
             print("Solution unbounded")
 
+        # fs ~ storage for deriving variables values
         fs = {}
 
-        for i in range(basic_variables.__len__()):
+        for i in range(len(basic_variables)):
             if basic_variables[i] != -1:
                 fs[basic_variables[i] + 1] = simplex_tableau[-1][i]
 
-        for i in range(basic_variables.__len__()):
+        for i in range(len(basic_variables)):
             if basic_variables[i] != -1:
                 for k in solutions:
                     if k - 1 == basic_variables[i]:
@@ -335,23 +353,22 @@ def solve(bound):
                 if sum == float(constraint[-1]):
                     temp = 1
                     for i in constraint[:-2]:
-                        if i != 0 and not fs.__contains__(temp):
+                        if i != 0 and not temp in fs:
                             final_solution[temp] = 0.0
                         temp += 1
 
+        # merging solutions dictionaries
         fs = fs | final_solution
 
         for i in range(1, orig_variables + 1):
-            if fs.__contains__(i):
+            if i in fs:
                 print("x" + str(i) + "=" + str(round(fs[i], bound)))
             else:
                 print("x" + str(i) + "=" + str(0.0))
 
-        # if message == "finished" and solutions.__len__() != 0 and to_delete.__len__() == 0:
-        #     print("for the value of: ", round(simplex_tableau[-1][-1], bound))
         if message == "finished":
             sum = 0
-            for i in range(optimization.__len__()):
+            for i in range(len(optimization)):
                 if i + 1 in fs.keys():
                     sum += fs[i + 1] * float(optimization[i])
             print("for the value of: ", round(sum, bound))
